@@ -6027,7 +6027,7 @@ S['reverse-integer'] = [`Дано 32-битное целое число x. Ве�
   var curId = null, busy = false, ctl = null, sampleFn = null, sampleState = 'pending';
   var profileRef = null, saveTimer = null, writing = false, dirty = false;
   var lastRun = {}, delArm = false, resetArm = false, codeArm = false, leftTab = 'desc', cTab = 'mentor', layout = {};
-  var consoleOpen = false, topicsOpen = false, hintsOpen = false, stmtEdit = false;
+  var consoleOpen = false, topicsOpen = false, hintsOpen = false, stmtEdit = false, stmtDraft = null;
   var dq = '', dSort = { k: 'diff', dir: 1 }, dDiff = 'all', dStar = false, dPage = 0, PAGE = 75;
 
   function freshState() { return { v: 2, xp: 0, ach: [], cases: {}, custom: [], stmts: {}, stars: {}, last: 'contains-duplicate' }; }
@@ -6288,7 +6288,7 @@ S['reverse-integer'] = [`Дано 32-битное целое число x. Ве�
     }
     if (hintsOpen && !c.boss) h += '<div class="reveal"><p>Помощь даёт наставник: намёк бесплатный, подсказка стоит 5 XP, полный разбор идеи 10 XP. Застрял — бери, это нормально.</p><button type="button" class="btn ghost small" data-act="hintMenu">Открыть помощь</button></div>';
     if ((c.listOnly || c.custom) && (!(c.statement || '').trim() || stmtEdit)) {
-      h += '<div class="stmt"><p>' + (c.listOnly ? 'Условия этой задачи пока нет в приложении. Нажми «Составить условие»: наставник напишет его своими словами с примерами и ограничениями (сверь с NeetCode по кнопке выше). Или скопируй условие оттуда и вставь сюда.' : 'Вставь условие задачи.') + '</p><label class="sr-only" for="stmtText">Условие задачи</label><textarea class="field" id="stmtText" rows="9" maxlength="6000" placeholder="Условие, примеры, ограничения">' + esc(c.statement || '') + '</textarea><div class="row">' + (c.listOnly ? '<button type="button" class="btn js-act js-ment" data-act="genStmt">Составить условие</button>' : '') + '<button type="button" class="btn go" data-act="saveStmt">Сохранить условие</button>' + (stmtEdit ? '<button type="button" class="btn ghost" data-act="cancelStmt">Отмена</button>' : '') + '</div></div>';
+      h += '<div class="stmt"><p>' + (c.listOnly ? 'Условия этой задачи пока нет в приложении. Нажми «Составить условие»: наставник напишет его своими словами с примерами и ограничениями (сверь с NeetCode по кнопке выше). Или скопируй условие оттуда и вставь сюда.' : 'Вставь условие задачи.') + '</p><label class="sr-only" for="stmtText">Условие задачи</label><textarea class="field" id="stmtText" rows="9" maxlength="6000" placeholder="Условие, примеры, ограничения">' + esc(stmtDraft != null ? stmtDraft : (c.statement || '')) + '</textarea><div class="row">' + (c.listOnly ? '<button type="button" class="btn js-act js-ment" data-act="genStmt">Составить условие</button>' : '') + '<button type="button" class="btn go" data-act="saveStmt">Сохранить условие</button>' + (stmtEdit ? '<button type="button" class="btn ghost" data-act="cancelStmt">Отмена</button>' : '') + '</div></div>';
     } else {
       h += '<div class="prose"><p>' + ((c.custom || c.listOnly) ? esc(c.statement) : chipify(c, esc(c.statement))) + '</p></div>';
       if (c.hasStd) h += '<p class="muted" style="font-size:12.5px">Условие изложено своими словами. Точные формулировки и ограничения смотри на NeetCode.</p>';
@@ -6766,7 +6766,7 @@ S['reverse-integer'] = [`Дано 32-битное целое число x. Ве�
   function selectCase(id) {
     var c = getCase(id); if (!c) return;
     if (isLocked(c)) { toast('Босс откроется после трёх раскрытых дел'); return; }
-    curId = id; state.last = id; delArm = false; leftTab = 'desc'; cTab = 'mentor'; topicsOpen = false; hintsOpen = false; stmtEdit = false; persist(); closeDrawer(); renderCase();
+    curId = id; state.last = id; delArm = false; leftTab = 'desc'; cTab = 'mentor'; topicsOpen = false; hintsOpen = false; stmtEdit = false; stmtDraft = null; persist(); closeDrawer(); renderCase();
     var lb = $('#leftBody'); if (lb) lb.scrollTop = 0; window.scrollTo({ top: 0 });
   }
   function stepCase(d) {
@@ -6804,23 +6804,25 @@ S['reverse-integer'] = [`Дано 32-битное целое число x. Ве�
     saveStmt: function () {
       var c = curCase(), v = ($('#stmtText').value || '').trim();
       if (v.length < 20) { toast('Вставь условие целиком'); return; }
-      state.stmts[c.id] = v.slice(0, 6000); stmtEdit = false; persist(); renderLeft(); toast('Условие сохранено');
+      state.stmts[c.id] = v.slice(0, 6000); stmtEdit = false; stmtDraft = null; persist(); renderLeft(); toast('Условие сохранено');
     },
     genStmt: function () {
       var c = curCase(), t = $('#stmtText'); if (!t) return;
       if (!sampleFn) { toast('Наставник сейчас недоступен'); return; }
+      var prev = t.value, id = c.id;
       var prompt = 'Напиши условие задачи «' + c.title + '» (' + c.diff + (c.topics && c.topics[0] ? ', раздел ' + c.topics[0] : '') + ') из списка NeetCode 150, как её обычно формулируют, но СВОИМИ СЛОВАМИ на русском, без копирования оригинала. Формат обычным текстом: 1) условие в 2–4 предложениях; 2) «Пример 1:», «Пример 2:» (и при необходимости 3) в виде «Вход: … Выход: …» с короткой пометкой; 3) «Ограничения:» списком через «- ». Не давай подсказок к решению и не называй приём или структуру данных. Не используй markdown-разметку и код-блоки.';
-      setBusy(true); t.value = ''; t.placeholder = 'Составляю условие…';
-      ctl = new AbortController();
-      sampleFn(prompt, { signal: ctl.signal, cache: false, onText: function (u) { var el = $('#stmtText'); if (el) el.value = u.text; } }).then(function (r) {
-        var el = $('#stmtText'); if (el) el.value = r.text.trim();
+      stmtDraft = prev; toast('Составляю условие. Прежний текст вернётся, если что-то пойдёт не так.');
+      setBusy(true); ctl = new AbortController();
+      sampleFn(prompt, { signal: ctl.signal, cache: false, onText: function (u) { stmtDraft = u.text; var el = $('#stmtText'); if (el && curId === id) el.value = u.text; } }).then(function (r) {
+        stmtDraft = r.text.trim(); var el = $('#stmtText'); if (el && curId === id) el.value = stmtDraft;
         toast('Проверь условие и нажми «Сохранить условие»');
       }, function (e) {
-        if (!(e && e.code === 'cancelled')) toast(ERR[e && e.code] || 'Не получилось составить условие. Попробуй ещё раз.');
+        stmtDraft = prev; var el = $('#stmtText'); if (el && curId === id) el.value = prev;
+        toast(e && e.code === 'cancelled' ? 'Отменено, прежнее условие на месте' : (ERR[e && e.code] || 'Не получилось составить условие, прежний текст сохранён.'));
       }).then(function () { ctl = null; setBusy(false); });
     },
-    editStmt: function () { stmtEdit = true; renderLeft(); var t = $('#stmtText'); if (t) t.focus(); },
-    cancelStmt: function () { stmtEdit = false; renderLeft(); },
+    editStmt: function () { stmtEdit = true; stmtDraft = null; renderLeft(); var t = $('#stmtText'); if (t) t.focus(); },
+    cancelStmt: function () { if (ctl) ctl.abort(); stmtEdit = false; stmtDraft = null; renderLeft(); },
     del: function () {
       if (!delArm) { delArm = true; renderLeft(); return; }
       var id = curId; state.custom = state.custom.filter(function (c) { return c.id !== id; }); delete state.cases[id]; delete state.stmts[id]; delArm = false;
@@ -6864,6 +6866,7 @@ S['reverse-integer'] = [`Дано 32-битное целое число x. Ве�
     var p = prog(curId), t = e.target;
     if (t.id === 'dq') { dq = t.value; dPage = 0; renderDrawer(); return; }
     if (t.id === 'bigN') { drawBig(); return; }
+    if (t.id === 'stmtText') { stmtDraft = t.value; return; }
     if (t.id === 'answer') p.answers[SCENES[p.scene].id] = t.value;
     else if (t.id === 'code') { p.code = t.value; updEditor(); } else return;
     persist(); updPos();
