@@ -6073,6 +6073,39 @@ S['reverse-integer'] = [`Дано 32-битное целое число x. Ве�
     }
     return out + esc(raw.slice(last));
   }
+  // Оформляет текст условия: «Пример N», «Вход», «Выход», «Ограничения» превращаются в такие же блоки, как у встроенных задач.
+  function renderStmt(text) {
+    var lines = String(text || '').replace(/\r/g, '').split('\n'), out = '', prose = [], block = null, cons = null, last = null;
+    function flushProse() { var t = prose.join('\n').trim(); if (t) out += '<div class="prose"><p>' + esc(t) + '</p></div>'; prose = []; }
+    function flushBlock() {
+      if (!block) return;
+      out += '<div class="excode">' + block.map(function (b) { return b.n ? '<div class="n">' + esc(b.v) + '</div>' : '<div><span class="k">' + esc(b.k) + '</span> ' + colorize(b.v) + '</div>'; }).join('') + '</div>';
+      block = null; last = null;
+    }
+    function flushCons() { if (cons) { out += '<ul class="cons">' + cons.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'; cons = null; } }
+    lines.forEach(function (raw) {
+      var ln = raw.trim(), m;
+      if (/^(Пример|Example)\s*\d*\s*:?$/i.test(ln)) { flushProse(); flushBlock(); flushCons(); out += '<div class="exh">' + esc(ln.replace(/:?$/, ':')) + '</div>'; block = []; return; }
+      if (/^(Ограничения|Constraints)\s*:?$/i.test(ln)) { flushProse(); flushBlock(); flushCons(); out += '<div class="exh">Ограничения:</div>'; cons = []; return; }
+      if (block) {
+        if (!ln) return;
+        if ((m = ln.match(/^(Вход|Input)\s*:\s*(.*)$/i))) { last = { k: 'Вход:', v: m[2] }; block.push(last); return; }
+        if ((m = ln.match(/^(Выход|Output)\s*:\s*(.*)$/i))) { last = { k: 'Выход:', v: m[2] }; block.push(last); return; }
+        if ((m = ln.match(/^(Пометка|Примечание|Объяснение|Explanation)\s*:\s*(.*)$/i))) { last = { n: true, v: m[2] }; block.push(last); return; }
+        if (last) { last.v += ' ' + ln; return; }
+        flushBlock();
+      }
+      if (cons) {
+        if (!ln) return;
+        if (/^[-*•]\s+/.test(ln)) { cons.push(ln.replace(/^[-*•]\s+/, '')); return; }
+        if (cons.length) { cons[cons.length - 1] += ' ' + ln; return; }
+        flushCons();
+      }
+      prose.push(raw);
+    });
+    flushProse(); flushBlock(); flushCons();
+    return out;
+  }
   function chipify(c, s) {
     var names = [], m = (c.starter || '').match(/function\s+\w+\s*\(([^)]*)\)/);
     if (m) names = m[1].split(',').map(function (x) { return x.trim(); }).filter(Boolean);
@@ -6132,7 +6165,7 @@ S['reverse-integer'] = [`Дано 32-битное целое число x. Ве�
     var e = NC_BY_SLUG[slug]; if (!e) return null;
     var c = listCache[slug] || (listCache[slug] = { id: 'nc-' + slug, slug: slug, no: pad(e.i + 1), title: e.t, diff: DIFFN[e.d], listOnly: true, examples: [], constraints: [], topics: [NC_GROUPS[e.g]], url: ncUrl(slug) });
     var own = state.stmts[c.id], std = NC_STMTS[slug];
-    c.hasStd = !!std && !own;
+    c.hasStd = !!std && !own; c.ownStmt = !!own; c.hasStdAny = !!std;
     c.statement = own || (std ? std[0] : '');
     c.examples = own || !std ? [] : std[1].map(function (x) { return { i: x[0], o: x[1], n: x[2] || '' }; });
     c.constraints = own || !std ? [] : std[2];
@@ -6283,8 +6316,9 @@ S['reverse-integer'] = [`Дано 32-битное целое число x. Ве�
     if ((c.listOnly || c.custom) && (!(c.statement || '').trim() || stmtEdit)) {
       h += '<div class="stmt"><p>' + (c.listOnly ? 'Условия этой задачи пока нет в приложении. Нажми «Составить условие»: наставник напишет его своими словами с примерами и ограничениями (сверь с NeetCode по кнопке выше). Или скопируй условие оттуда и вставь сюда.' : 'Вставь условие задачи.') + '</p><label class="sr-only" for="stmtText">Условие задачи</label><textarea class="field" id="stmtText" rows="9" maxlength="6000" placeholder="Условие, примеры, ограничения">' + esc(stmtDraft != null ? stmtDraft : (c.statement || '')) + '</textarea><div class="row">' + (c.listOnly ? '<button type="button" class="btn js-act js-ment" data-act="genStmt">Составить условие</button>' : '') + '<button type="button" class="btn go" data-act="saveStmt">Сохранить условие</button>' + (stmtEdit ? '<button type="button" class="btn ghost" data-act="cancelStmt">Отмена</button>' : '') + '</div></div>';
     } else {
-      h += '<div class="prose"><p>' + ((c.custom || c.listOnly) ? esc(c.statement) : chipify(c, esc(c.statement))) + '</p></div>';
+      h += (c.custom || c.listOnly) ? renderStmt(c.statement) : '<div class="prose"><p>' + chipify(c, esc(c.statement)) + '</p></div>';
       if (c.hasStd) h += '<p class="muted" style="font-size:12.5px">Условие изложено своими словами. Точные формулировки и ограничения смотри на NeetCode.</p>';
+      if (c.listOnly && c.ownStmt && c.hasStdAny) h += '<p class="muted" style="font-size:12.5px">Здесь твой текст условия, поэтому блоки примеров и ограничений скрыты. <button type="button" class="link-btn" data-act="resetStmt">Вернуть встроенное условие с примерами</button></p>';
       if (c.listOnly || c.custom) h += '<button type="button" class="link-btn" data-act="editStmt">Изменить условие</button>';
     }
     (c.examples || []).forEach(function (e, k) {
@@ -6814,6 +6848,7 @@ S['reverse-integer'] = [`Дано 32-битное целое число x. Ве�
         toast(e && e.code === 'cancelled' ? 'Отменено, прежнее условие на месте' : (ERR[e && e.code] || 'Не получилось составить условие, прежний текст сохранён.'));
       }).then(function () { ctl = null; setBusy(false); });
     },
+    resetStmt: function () { var c = curCase(); delete state.stmts[c.id]; stmtEdit = false; stmtDraft = null; persist(); renderLeft(); toast('Вернул встроенное условие'); },
     editStmt: function () { stmtEdit = true; stmtDraft = null; renderLeft(); var t = $('#stmtText'); if (t) t.focus(); },
     cancelStmt: function () { if (ctl) ctl.abort(); stmtEdit = false; stmtDraft = null; renderLeft(); },
     del: function () {
