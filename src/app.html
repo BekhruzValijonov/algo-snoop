@@ -243,6 +243,24 @@ code.ic { background: var(--pane-2); border: 1px solid var(--line); border-radiu
 .sxp { font: 600 11.5px var(--font-mono); color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tips ol, .tips ul { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 8px; max-width: 64ch; }
 .tips p { max-width: 64ch; }
+.ref .acc { margin-top: 0; margin-bottom: 12px; }
+.ref .acc > div { color: var(--ink); padding-top: 4px; }
+.ref p { margin: 0 0 10px; line-height: 1.7; max-width: 72ch; }
+.ref ul { margin: 0 0 10px; padding-left: 20px; }
+.ref li { margin-bottom: 6px; max-width: 72ch; }
+.refh { font-weight: 700; margin-top: 16px !important; }
+.rt { width: 100%; border-collapse: collapse; margin: 6px 0 14px; font-size: 13.5px; }
+.rt th { text-align: left; font: 600 11.5px var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--ink-2); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.rt td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.bigctl { display: flex; align-items: center; gap: 12px; margin: 8px 0 10px; }
+.bigctl label { color: var(--ink-2); font-size: 13px; white-space: nowrap; }
+.bigctl input { flex: 1; min-width: 0; accent-color: var(--tab); }
+.bigctl b { min-width: 88px; text-align: right; font-variant-numeric: tabular-nums; }
+.bigrows { display: grid; gap: 6px; margin-bottom: 12px; }
+.brow { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 8px 10px; background: var(--pane-2); border-radius: 8px; font-size: 13px; }
+.bok { color: var(--ok); font-weight: 600; font-size: 12px; }
+.bno { color: var(--accent); font-weight: 600; font-size: 12px; }
+@media (max-width: 560px) { .brow { grid-template-columns: minmax(0, 1fr) auto; } .brow code { grid-column: 1 / -1; } }
 .ach-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .ach { display: grid; gap: 1px; padding: 8px 12px; border: 1px dashed var(--line); border-radius: 10px; color: var(--ink-2); }
 .ach b { font-weight: 600; }
@@ -733,6 +751,7 @@ var NC_LIST = [["Contains Duplicate","duplicate-integer","E",0],["Valid Anagram"
     ext: svg('<path d="M9.5 2.5h4v4M13.5 2.5L7.5 8.5M12 9v3.5H3.5V4H7"/>', 15),
     chevL: svg('<path d="M10 3L5 8l5 5"/>', 14),
     chevR: svg('<path d="M6 3l5 5-5 5"/>', 14),
+    book: svg('<path d="M3 3.5A1.5 1.5 0 0 1 4.5 2H13v10.5H4.5A1.5 1.5 0 0 0 3 14zM3 14A1.5 1.5 0 0 0 4.5 15.5H13V12.5M6 5.5h4.5"/>'),
     help: svg('<circle cx="8" cy="8" r="6"/><path d="M6.3 6.2a1.8 1.8 0 1 1 2.6 1.6c-.6.4-.9.7-.9 1.4M8 11.3v.2"/>', 13)
   };
 
@@ -876,7 +895,8 @@ var NC_LIST = [["Contains Duplicate","duplicate-integer","E",0],["Valid Anagram"
   function isLocked(c) { return !!c.boss && doneCount() < 3; }
   function rankIdx(xp) { var k = 0; RANKS.forEach(function (r, i) { if (xp >= r.min) k = i; }); return k; }
   function hintPenalty(p, sid) { var h = p.hints[sid] || {}; return (h.l2 ? 5 : 0) + (h.l3 ? 10 : 0); }
-  function sceneOpen(p, i) { return i === 0 || !!p.results[SCENES[i - 1].id]; }
+  function sceneOpen(p, i) { return i === 0 || SCENES[i].id === 'code' || !!p.results[SCENES[i - 1].id]; }
+  function canClose(p) { return SCENES.every(function (s) { return p.results[s.id]; }) || !!(p.fast && p.results.code); }
   function validStart(id) { var c = getCase(id); return c && !isLocked(c) ? id : CASES[0].id; }
 
   function addXp(n) {
@@ -899,7 +919,7 @@ var NC_LIST = [["Contains Duplicate","duplicate-integer","E",0],["Valid Anagram"
       p.results[sc.id] = { res: res, xp: xp }; gain = Math.max(0, xp - (prev ? prev.xp : 0));
     }
     addXp(gain);
-    if (!p.done && SCENES.every(function (s) { return p.results[s.id]; })) closeCase(c, p);
+    if (!p.done && canClose(p)) closeCase(c, p);
     return gain;
   }
   function closeCase(c, p) {
@@ -973,9 +993,9 @@ var NC_LIST = [["Contains Duplicate","duplicate-integer","E",0],["Valid Anagram"
   function closeDrawer() { drawer.hidden = true; scrim.hidden = true; $('#listBtn').setAttribute('aria-expanded', 'false'); }
 
   /* ---------- left pane ---------- */
-  var LTABS = [['desc', 'Условие', 'doc'], ['scenes', 'Сцены', 'steps'], ['tips', 'Отмычка', 'key'], ['ach', 'Награды', 'trophy']];
+  var LTABS = [['desc', 'Условие', 'doc'], ['scenes', 'Сцены', 'steps'], ['tips', 'Отмычка', 'key'], ['ref', 'Справочник', 'book'], ['ach', 'Награды', 'trophy']];
   function doneCard(c, p) {
-    var total = p.bonus; SCENES.forEach(function (s) { total += p.results[s.id].xp; });
+    var total = p.bonus; SCENES.forEach(function (s) { total += (p.results[s.id] || { xp: 0 }).xp; });
     var nx = nextOpenCase(c), quote = (p.answers.protocol || '').trim();
     return '<section class="solved"><div class="stamp">Раскрыто</div><h3>Дело закрыто: ' + total + ' XP</h3><p class="muted">Из них ' + p.bonus + ' за закрытие дела. Подсказок: ' + p.hintsN + ', отправок кода: ' + p.runs + '.</p>' +
       (quote ? '<span class="label">Твой протокол: правило на будущее</span><blockquote>' + esc(quote) + '</blockquote>' : '') +
@@ -986,6 +1006,7 @@ var NC_LIST = [["Contains Duplicate","duplicate-integer","E",0],["Valid Anagram"
     h += '<div class="ptitle"><h1>' + esc(c.title) + '</h1></div><div class="pmeta">' +
       (c.diff ? '<span class="pill-d ' + c.diff.toLowerCase() + '">' + c.diff + '</span>' : '<span class="pill-d mine">Моё дело</span>') +
       (c.boss ? '<span class="tag-boss">Босс</span>' : '') +
+      (!p.done && SCENES[p.scene].id !== 'code' && p.scene < SCENES.length - 2 ? '<button type="button" class="pill-o" data-act="toCode">Сразу к коду</button>' : '') +
       (c.topics ? '<button type="button" class="pill-o' + (topicsOpen ? ' on' : '') + '" data-act="toggleTopics" aria-expanded="' + topicsOpen + '">' + IC.tag + ' Темы</button>' : '') +
       (c.boss ? '' : '<button type="button" class="pill-o gold' + (hintsOpen ? ' on' : '') + '" data-act="toggleHints" aria-expanded="' + hintsOpen + '">' + IC.help + ' Подсказки</button>') +
       (c.url ? '<a class="pill-o" href="' + esc(c.url) + '" target="_blank" rel="noopener noreferrer">' + IC.ext + ' NeetCode</a>' : '') +
@@ -1029,6 +1050,62 @@ var NC_LIST = [["Contains Duplicate","duplicate-integer","E",0],["Valid Anagram"
       '<div class="exh">Где искать</div><ul><li>Сначала в условии: ограничения подсказывают допустимую сложность.</li><li>Потом MDN по нужным методам JavaScript.</li><li>Потом «Помощь» наставника: намёк бесплатный, а «Объясни идею» разберёт всё по шагам.</li><li>Нет движения 10 минут: бери помощь, это экономия времени, а не поражение.</li></ul>' +
       '<div class="exh">Как задать хороший вопрос</div><p>«Я хочу [цель]. Сделал [что]. Ожидал [X], получил [Y]. Подозреваю [гипотеза]». На такой вопрос отвечают в пять раз быстрее, а ответ часто находится, пока ты его формулируешь.</p></div>';
   }
+
+  function refHTML() {
+    return '<div class="ref">' +
+      '<details class="acc" open><summary>Big O за минуту</summary><div>' +
+        '<p>Big O отвечает на вопрос: <b>во сколько раз вырастет работа, если данных станет больше</b>. Это не секунды, а то, как растёт число шагов.</p>' +
+        '<table class="rt"><thead><tr><th>Запись</th><th>Простыми словами</th><th>Пример</th></tr></thead><tbody>' +
+        '<tr><td><code>O(1)</code></td><td>всегда одно действие</td><td>взять элемент массива по индексу</td></tr>' +
+        '<tr><td><code>O(log n)</code></td><td>каждый шаг отбрасывает половину данных</td><td>искать слово в словаре</td></tr>' +
+        '<tr><td><code>O(n)</code></td><td>один проход по всем данным</td><td>прочитать весь список</td></tr>' +
+        '<tr><td><code>O(n log n)</code></td><td>сортировка</td><td>отсортировать список</td></tr>' +
+        '<tr><td><code>O(n²)</code></td><td>каждый с каждым</td><td>все пожали руки всем</td></tr>' +
+        '</tbody></table>' +
+        '<p><code>log n</code> значит «сколько раз можно разделить n пополам, пока не останется 1». У миллиона это около 20 шагов. Константы не считаем: <code>O(2n)</code> это просто <code>O(n)</code>. То же работает для памяти.</p>' +
+      '</div></details>' +
+      '<details class="acc" open><summary>Сколько операций выдержит задача</summary><div>' +
+        '<p>Компьютер делает порядка 10⁸ простых операций в секунду. Двигай n и смотри, что успевает за секунду.</p>' +
+        '<div class="bigctl"><label for="bigN">Размер входа n</label><input type="range" id="bigN" min="0.7" max="6" step="0.05" value="5"><b id="bigOut">100 000</b></div>' +
+        '<div id="bigRows" class="bigrows"></div>' +
+        '<table class="rt"><thead><tr><th>n до</th><th>какая сложность пройдёт</th></tr></thead><tbody>' +
+        '<tr><td>около 10</td><td>можно перебрать всё</td></tr>' +
+        '<tr><td>около 1 000</td><td><code>O(n²)</code></td></tr>' +
+        '<tr><td>около 100 000</td><td><code>O(n log n)</code> или <code>O(n)</code></td></tr>' +
+        '<tr><td>миллиарды</td><td><code>O(log n)</code> или <code>O(1)</code></td></tr></tbody></table>' +
+      '</div></details>' +
+    '</div>';
+  }
+  function nf(v) { return v.toFixed(1).replace(/\.0$/, '').replace('.', ','); }
+  function fmtOps(x) {
+    if (x >= 1e9) return nf(x / 1e9) + ' млрд';
+    if (x >= 1e6) return nf(x / 1e6) + ' млн';
+    if (x >= 1e3) return nf(x / 1e3) + ' тыс.';
+    return String(Math.round(x));
+  }
+  function fmtTime(sec) {
+    if (sec < 0.001) return 'меньше 1 мс';
+    if (sec < 1) return Math.round(sec * 1000) + ' мс';
+    if (sec < 60) return nf(sec) + ' с';
+    if (sec < 3600) return Math.round(sec / 60) + ' мин';
+    if (sec < 86400) return Math.round(sec / 3600) + ' ч';
+    if (sec < 3.15e7) return Math.round(sec / 86400) + ' сут.';
+    return 'дольше, чем живёт человек';
+  }
+  function drawBig() {
+    var rng = $('#bigN'), box = $('#bigRows'); if (!rng || !box) return;
+    var n = Math.max(2, Math.round(Math.pow(10, parseFloat(rng.value))));
+    $('#bigOut').textContent = n.toLocaleString('ru-RU');
+    var rows = [
+      ['O(1)', 1], ['O(log n)', Math.log2(n)], ['O(n)', n], ['O(n log n)', n * Math.log2(n)], ['O(n²)', n * n]
+    ], h = '';
+    rows.forEach(function (r) { h += bigRow(r[0], fmtOps(r[1]) + ' оп.', r[1] / 1e8); });
+    box.innerHTML = h;
+  }
+  function bigRow(name, ops, sec) {
+    var ok = sec <= 1;
+    return '<div class="brow"><code>' + name + '</code><span class="muted">' + ops + (sec === Infinity ? '' : ' · ' + fmtTime(sec)) + '</span><span class="' + (ok ? 'bok' : 'bno') + '">' + (ok ? 'успевает' : 'не успевает') + '</span></div>';
+  }
   function achHTML() {
     return '<ul class="ach-list">' + ACH.map(function (a) {
       var on = state.ach.indexOf(a.id) >= 0;
@@ -1038,7 +1115,8 @@ var NC_LIST = [["Contains Duplicate","duplicate-integer","E",0],["Valid Anagram"
   function renderLeft() {
     var c = curCase(), p = prog(c.id);
     $('#leftTabs').innerHTML = LTABS.map(function (t) { return '<button type="button" role="tab" class="tab' + (t[0] === leftTab ? ' on' : '') + '" aria-selected="' + (t[0] === leftTab) + '" data-lt="' + t[0] + '">' + IC[t[2]] + t[1] + '</button>'; }).join('');
-    $('#leftBody').innerHTML = leftTab === 'desc' ? descHTML(c, p) : leftTab === 'scenes' ? scenesHTML(c, p) : leftTab === 'tips' ? tipsHTML() : achHTML();
+    $('#leftBody').innerHTML = leftTab === 'desc' ? descHTML(c, p) : leftTab === 'scenes' ? scenesHTML(c, p) : leftTab === 'tips' ? tipsHTML() : leftTab === 'ref' ? refHTML() : achHTML();
+    if (leftTab === 'ref') drawBig();
   }
   function nextOpenCase(c) {
     var ids = navIds(), n = ids.length, at = ids.indexOf(c.id), pass, k;
@@ -1102,6 +1180,7 @@ var NC_LIST = [["Contains Duplicate","duplicate-integer","E",0],["Valid Anagram"
       ? (c.fn ? 'Реализуй функцию <code>' + esc(c.fn) + '</code> на JavaScript по своему плану. «Запустить» проверяет примеры, «Отправить» гоняет все тесты, включая большие входы.' : 'Напиши решение на JavaScript по своему плану и проверь его мысленно на своих примерах из «Допроса». Наставник проверит код рассуждением и оценит решение.')
       : esc(sc.q);
     $('#rTask').innerHTML = '<span class="label">' + sc.skill + '</span><h2>' + sc.title + '</h2><p>' + task + '</p>' +
+      (!isCode && !p.done && p.scene < SCENES.length - 2 ? '<p><button type="button" class="link-btn" data-act="toCode">Знаю решение: сразу к коду</button></p>' : '') +
       (HOW[sc.id] ? '<details class="how"><summary>' + (isCode ? 'Как действовать' : 'Пример ответа (на другой задаче)') + '</summary><p>' + esc(HOW[sc.id]) + '</p></details>' : '');
     if (isCode) {
       var code = p.code != null ? p.code : (c.starter || '// Напиши решение здесь\n');
@@ -1423,12 +1502,13 @@ var NC_LIST = [["Contains Duplicate","duplicate-integer","E",0],["Valid Anagram"
     if (nx) selectCase(nx);
   }
   var ACTS = {
-    step: function (b) { var p = prog(curId), i = +b.dataset.i; if (!sceneOpen(p, i)) { toast('Сначала закончи предыдущую сцену'); return; } p.scene = i; cTab = 'mentor'; persist(); renderCase(); },
+    step: function (b) { var p = prog(curId), i = +b.dataset.i; if (!sceneOpen(p, i)) { toast('Сначала закончи предыдущую сцену'); return; } if (SCENES[i].id === 'code' && !p.results[SCENES[i - 1].id]) p.fast = true; p.scene = i; cTab = 'mentor'; persist(); renderCase(); },
     submit: onSubmit, hint1: function () { onHint(1); }, hint2: function () { onHint(2); }, hint3: function () { onHint(3); }, ask: onAsk, review: onReview,
     run: function () { runCode(false); }, submitCode: function () { runCode(true); },
     formula: function () { var q = $('#qbox'); if (!q.value.trim()) q.value = 'Я хочу … (цель этой сцены).\nЯ уже попробовал … .\nОжидал … , а получилось … (или: не понимаю, как перейти от … к … ).\nМоя гипотеза: … .'; q.focus(); },
+    toCode: function () { var p = prog(curId); p.fast = true; p.scene = SCENES.length - 2; cTab = 'mentor'; leftTab = 'desc'; persist(); renderCase(); toast('Сразу к коду. Остальные сцены можно пройти позже.'); },
     next: function () { var p = prog(curId); p.scene = Math.min(p.scene + 1, SCENES.length - 1); cTab = 'mentor'; persist(); renderCase(); },
-    skip: function () { var c = curCase(), p = prog(c.id), sc = SCENES[p.scene]; p.results[sc.id] = { res: 'PARTIAL', xp: 0 }; p.lastRes[sc.id] = 'PARTIAL'; if (!p.done && SCENES.every(function (s) { return p.results[s.id]; })) closeCase(c, p); persist(); afterSettle(c, sc); },
+    skip: function () { var c = curCase(), p = prog(c.id), sc = SCENES[p.scene]; p.results[sc.id] = { res: 'PARTIAL', xp: 0 }; p.lastRes[sc.id] = 'PARTIAL'; if (!p.done && canClose(p)) closeCase(c, p); persist(); afterSettle(c, sc); },
     stop: function () { if (ctl) ctl.abort(); },
     nextCase: function () { var nx = nextOpenCase(curCase()); if (nx) selectCase(nx.id); },
     toggleConsole: function () { if (consoleOpen) closeConsole(); else openConsole(); },
@@ -1498,6 +1578,7 @@ var NC_LIST = [["Contains Duplicate","duplicate-integer","E",0],["Valid Anagram"
   shell.addEventListener('input', function (e) {
     var p = prog(curId), t = e.target;
     if (t.id === 'dq') { dq = t.value; dPage = 0; renderDrawer(); return; }
+    if (t.id === 'bigN') { drawBig(); return; }
     if (t.id === 'answer') p.answers[SCENES[p.scene].id] = t.value;
     else if (t.id === 'code') { p.code = t.value; updEditor(); } else return;
     persist(); updPos();
